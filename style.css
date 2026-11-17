@@ -88,6 +88,7 @@ input[type="checkbox"]:checked { background: var(--text); box-shadow: inset 0 0 
 .select { display: inline-block; width: auto; flex: 1; min-width: 0; padding: 2px 8px; }
 .connecting { text-align: center; padding: 50px 0; color: var(--muted); }
 .connecting .code { display: block; margin-top: 8px; }
+.connecting .foot { justify-content: center; }
 
 /* board: participants */
 .people { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }

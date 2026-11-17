@@ -70,6 +70,7 @@ function stop() {
   timers = [];
   state.net?.leave();
   state.net = null;
+  state.present = []; // no session: the leave-site warning must not fire
 }
 
 function sanitizePeers(list) {
@@ -120,9 +121,9 @@ function startSession(code, name, board) {
   open();
   render();
   if (!board.columns.length) {
-    later(10000, () => {
-      if (!state.board.columns.length && state.present.length < 2 && conflictSince === null) fail(NOBODY);
-    });
+    const giveUp = () => { if (!state.board.columns.length && conflictSince === null) fail(NOBODY); };
+    // someone said hello: allow one extension for a slow board transfer
+    later(10000, () => (state.present.length > 1 ? later(5000, giveUp) : giveUp()));
   }
 }
 
@@ -247,6 +248,7 @@ $('#go-start').addEventListener('click', () => {
   $('#setup-name').focus();
 });
 $('#go-join').addEventListener('click', () => showJoin());
+$('#connecting-back').addEventListener('click', stop);
 for (const b of $$('.back')) {
   b.addEventListener('click', () => {
     history.replaceState(null, '', location.pathname + location.search);

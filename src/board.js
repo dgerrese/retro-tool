@@ -143,6 +143,8 @@ export function merge(local, remote) {
     const names = remote.revealed.map((n) => str(n, 40)).filter((n) => n !== null);
     local.revealed = [...new Set([...local.revealed, ...names])].sort();
   }
+  // a card whose author was already revealed (concurrently) must not stay face-down
+  for (const c of Object.values(local.cards)) c.revealed ||= local.revealed.includes(c.author);
   const o = remote.organiser;
   if (isObj(o) && isRev(o.rev) && typeof o.name === 'string') {
     const name = clean(o.name, 40), cur = local.organiser;

@@ -31,6 +31,8 @@ There is no build step. The site is the static files in the repository.
 - **Public Nostr relays** (listed in `src/relays.js`) only help browsers find each other. They see encrypted connection setup, IP addresses and timing, never content.
 - **Public STUN servers** (Google and Cloudflare defaults) see IP addresses during connection setup.
 - **Board lives in memory only.** It disappears when the last tab closes. The app does not use IndexedDB or sessionStorage.
+- The session code and your name are in the page URL after `#`, so they end up in browser history. Anyone with access to that history can join a live session.
+- Browser features you enable (for example enhanced spell check or page translation) may send typed text to the browser vendor. The app sets `translate="no"`.
 - **localStorage holds only the column names and the theme preference.** Anyone with the session code can join and see the board.
 
 ## Known network risk

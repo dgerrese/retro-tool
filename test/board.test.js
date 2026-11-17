@@ -273,3 +273,12 @@ test('nameConflict', () => {
   assert.equal(nameConflict({ ...me, joinedAt: 3, peerId: 'p0' }, [early]), false);
   assert.equal(nameConflict(me, [{ name: 'Bob', joinedAt: 1, peerId: 'p0' }]), false);
 });
+
+test('merge reveals a new unsynced card whose author the organiser already revealed', () => {
+  const org = mk(); org.revealed = ['Anna'];
+  const anna = withCard(mk(), { id: 'n', author: 'Anna' });
+  const a = merge(structuredClone(org), json(anna));
+  const b = merge(structuredClone(anna), json(org));
+  assert.equal(a.cards.n.revealed, true);
+  assert.equal(b.cards.n.revealed, true);
+});

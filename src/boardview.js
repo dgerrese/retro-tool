@@ -59,7 +59,7 @@ export function renderBoard(state, commit) {
     }
     const isRevealed = board.revealed.includes(name);
     if (isRevealed && !n && !isMe) c.append(el('span', 'tag', 'revealed'));
-    if (iOrganise && (n || !isRevealed)) {
+    if (iOrganise && n) {
       const b = button('Reveal', 'btn sm primary', `reveal:${name}`, act(() => reveal(board, name)));
       b.setAttribute('aria-label', `Reveal ${name}'s cards`);
       c.append(b);
@@ -147,7 +147,7 @@ export function renderBoard(state, commit) {
       addCard(board, { id: crypto.randomUUID(), column: col.id, text, author: me.name });
       drafts[col.id] = '';
       commit();
-    }, () => { drafts[col.id] = ''; add.value = ''; add.blur(); });
+    }, () => add.blur());
     c.append(add, el('div', 'hint add-hint', 'Enter adds · Shift+Enter new line'));
     return c;
   }));
