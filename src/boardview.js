@@ -1,4 +1,4 @@
-import { addCard, editCard, deleteCard, toggleVote, reveal, setOrganiser, voteCount, actingOrganiser } from './board.js';
+import { addCard, editCard, deleteCard, toggleVote, reveal, hide, shown, isRevealed, setOrganiser, voteCount, actingOrganiser } from './board.js';
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -34,14 +34,15 @@ export function renderBoard(state, commit) {
 
   const cards = live(board);
   if (editing && !cards.some((c) => c.id === editing.id && c.author === me.name)) editing = null;
-  const facedown = (name) => cards.filter((c) => c.author === name && !c.revealed).length;
+  const up = (c) => isRevealed(board, c);
+  const facedown = (name) => cards.filter((c) => c.author === name && !up(c)).length;
   const acting = actingOrganiser(board, state.present);
   const iOrganise = acting === me.name;
 
   // ---- participants ----
   const people = new Map([[me.name, state.present.find((p) => p.name === me.name) ?? me]]);
   for (const p of [...state.present].sort((x, y) => x.joinedAt - y.joinedAt)) if (!people.has(p.name)) people.set(p.name, p);
-  const left = [...new Set(cards.filter((c) => !c.revealed).map((c) => c.author))].filter((n) => !people.has(n));
+  const left = [...new Set(cards.filter((c) => !up(c)).map((c) => c.author))].filter((n) => !people.has(n));
 
   const chip = (name, isLeft) => {
     const n = facedown(name), isMe = name === me.name;
@@ -57,11 +58,17 @@ export function renderBoard(state, commit) {
       pile.append(stack, el('span', 'n', String(n)));
       c.append(pile);
     }
-    const isRevealed = board.revealed.includes(name);
-    if (isRevealed && !n && !isMe) c.append(el('span', 'tag', 'revealed'));
+    const isShown = shown(board, name);
+    if (isShown && !n && !isMe) c.append(el('span', 'tag', 'revealed'));
     if (iOrganise && n) {
       const b = button('Reveal', 'btn sm primary', `reveal:${name}`, act(() => reveal(board, name)));
       b.setAttribute('aria-label', `Reveal ${name}'s cards`);
+      c.append(b);
+    }
+    // undo an accidental reveal: only when they have cards that the reveal turned face-up
+    if (iOrganise && isShown && cards.some((x) => x.author === name && !x.revealed)) {
+      const b = button('Hide', 'btn sm', `hide:${name}`, act(() => hide(board, name)));
+      b.setAttribute('aria-label', `Hide ${name}'s cards again`);
       c.append(b);
     }
     if (iOrganise && !isMe && !isLeft) {
@@ -105,20 +112,13 @@ export function renderBoard(state, commit) {
       n.append(t, el('div', 'hint', 'Enter saves · Shift+Enter new line · Esc cancels'));
       return n;
     }
-    const n = el('div', `note${mine ? ' mine' : ''}${card.revealed ? '' : ' hidden'}`);
+    const n = el('div', `note${mine ? ' mine' : ''}${up(card) ? '' : ' hidden'}`);
     n.append(el('div', 'text', card.text));
     const meta = el('div', 'meta');
-    if (!card.revealed) meta.append(el('span', 'ntag', 'face-down for others'));
-    else {
-      const votes = voteCount(card), on = card.votes[me.name]?.on === true;
-      const v = button(`👍 ${votes}`, `vote${on ? ' on' : ''}`, `vote:${card.id}`, act(() => toggleVote(board, card.id, me.name)));
-      v.setAttribute('aria-pressed', on);
-      v.setAttribute('aria-label', `Vote (${votes})`);
-      meta.append(el('span', null, mine ? `${card.author} (you)` : card.author), v);
-    }
-    n.append(meta);
+    meta.append(up(card) ? el('span', null, mine ? `${card.author} (you)` : card.author) : el('span', 'ntag', 'face-down for others'));
+    // Edit/Delete sit in the footer with their space always reserved, so hovering never resizes the card
     if (mine) {
-      const tools = el('div', 'tools');
+      const tools = el('span', 'tools');
       tools.append(
         button('Edit', null, `editbtn:${card.id}`, () => {
           editing = { id: card.id, text: card.text };
@@ -126,8 +126,24 @@ export function renderBoard(state, commit) {
           rerender();
         }),
         button('Delete', null, `del:${card.id}`, act(() => deleteCard(board, card.id, me.name))));
-      n.prepend(tools);
+      meta.append(tools);
     }
+    if (up(card)) {
+      const votes = voteCount(card);
+      if (mine) {
+        // you can't vote on your own card; just show the count
+        const v = el('span', 'vote own', `👍 ${votes}`);
+        v.setAttribute('aria-label', `${votes} vote${votes === 1 ? '' : 's'}`);
+        meta.append(v);
+      } else {
+        const on = card.votes[me.name]?.on === true;
+        const v = button(`👍 ${votes}`, `vote${on ? ' on' : ''}`, `vote:${card.id}`, act(() => toggleVote(board, card.id, me.name)));
+        v.setAttribute('aria-pressed', on);
+        v.setAttribute('aria-label', `Vote (${votes})`);
+        meta.append(v);
+      }
+    }
+    n.append(meta);
     return n;
   };
 
@@ -135,7 +151,7 @@ export function renderBoard(state, commit) {
     const c = el('div', 'col');
     c.append(el('h2', 'colh', col.name));
     // others' face-down cards stay in their pile; only revealed cards and your own show here
-    for (const card of cards) if (card.column === col.id && (card.revealed || card.author === me.name)) c.append(note(card));
+    for (const card of cards) if (card.column === col.id && (up(card) || card.author === me.name)) c.append(note(card));
     const add = textarea(`add:${col.id}`, drafts[col.id] ?? '', `Add a card to ${col.name}`);
     add.className = 'add';
     add.placeholder = '+ Add a card';

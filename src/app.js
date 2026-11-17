@@ -230,8 +230,9 @@ $('#import-file').addEventListener('change', async (e) => {
   renderTargets();
 });
 
-$('#setup-form').addEventListener('submit', (e) => {
-  e.preventDefault();
+// Only the Start session button starts a session; Enter in a field must not.
+$('#setup-form').addEventListener('submit', (e) => e.preventDefault());
+$('#start').addEventListener('click', () => {
   const name = cleanName($('#setup-name').value), kept = keptCols();
   if (!name || !kept.length) return;
   try { localStorage.setItem('retro.columns', JSON.stringify(kept)); } catch { /* not essential */ }

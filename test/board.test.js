@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createBoard, addCard, editCard, deleteCard, toggleVote,
-  reveal, setOrganiser, addImported, voteCount,
+  reveal, hide, isRevealed, setOrganiser, addImported, voteCount,
 } from '../src/board.js';
 
 const mk = () => createBoard(['Good', 'Bad']);
@@ -13,7 +13,7 @@ test('createBoard builds columns, empty state and organiser', () => {
   const b = mk();
   assert.deepEqual(b.columns, [{ id: 'c0', name: 'Good' }, { id: 'c1', name: 'Bad' }]);
   assert.deepEqual({ ...b.cards }, {});
-  assert.deepEqual([b.revealed, b.organiser], [[], { name: '', rev: 0 }]);
+  assert.deepEqual([Object.keys(b.revealed), b.organiser], [[], { name: '', rev: 0 }]);
 });
 
 test('createBoard trims and truncates column names to 60', () => {
@@ -31,7 +31,8 @@ test('addCard adds an unrevealed card', () => {
 test('a card added after its author is revealed is revealed', () => {
   const b = mk();
   reveal(b, 'Ann');
-  assert.equal(withCard(b).cards.a.revealed, true);
+  withCard(b);
+  assert.equal(isRevealed(b, b.cards.a), true);
 });
 
 test('a 1200-char card is stored as 1000 chars; author capped at 40', () => {
@@ -97,10 +98,35 @@ test('reveal marks the author and all their cards only', () => {
   withCard(b, { id: 'b' });
   withCard(b, { id: 'c', author: 'Bob' });
   reveal(b, 'Ann');
-  assert.deepEqual(b.revealed, ['Ann']);
-  assert.deepEqual([b.cards.a.revealed, b.cards.b.revealed, b.cards.c.revealed], [true, true, false]);
+  assert.deepEqual(['a', 'b', 'c'].map((id) => isRevealed(b, b.cards[id])), [true, true, false]);
+  assert.deepEqual({ ...b.revealed }, { Ann: { on: true, rev: 1 } });
+});
+
+test('hide turns an accidental reveal back; votes survive; reveal again restores', () => {
+  const b = withCard(mk());
   reveal(b, 'Ann');
-  assert.deepEqual(b.revealed, ['Ann']);
+  toggleVote(b, 'a', 'Bob');
+  hide(b, 'Ann');
+  assert.equal(isRevealed(b, b.cards.a), false);
+  assert.deepEqual({ ...b.revealed }, { Ann: { on: false, rev: 2 } });
+  toggleVote(b, 'a', 'Bob'); // no voting on hidden cards
+  assert.equal(voteCount(b.cards.a), 1);
+  reveal(b, 'Ann');
+  assert.equal(isRevealed(b, b.cards.a), true);
+});
+
+test('hide never hides imported cards', () => {
+  const b = mk();
+  addImported(b, [{ text: 'old', author: 'Ann' }], 'c0');
+  reveal(b, 'Ann'); hide(b, 'Ann');
+  assert.equal(isRevealed(b, Object.values(b.cards)[0]), true);
+});
+
+test('you cannot vote on your own card', () => {
+  const b = withCard(mk());
+  reveal(b, 'Ann');
+  toggleVote(b, 'a', 'Ann');
+  assert.equal(voteCount(b.cards.a), 0);
 });
 
 test('setOrganiser bumps rev', () => {
@@ -221,7 +247,7 @@ test('merge sanitizes remote and never throws on garbage', () => {
 
 test('merge copies into null-prototype objects and survives __proto__ keys', () => {
   const b = mk();
-  const r = JSON.parse('{"columns":[],"cards":{"__proto__":{"id":"__proto__","column":"c0","text":"t","author":"E","rev":0,"deleted":false,"revealed":false,"votes":{"__proto__":{"on":true,"rev":1}}}},"revealed":[],"organiser":{"name":"","rev":0}}');
+  const r = JSON.parse('{"columns":[],"cards":{"__proto__":{"id":"__proto__","column":"c0","text":"t","author":"E","rev":0,"deleted":false,"revealed":false,"votes":{"__proto__":{"on":true,"rev":1}}}},"revealed":{},"organiser":{"name":"","rev":0}}');
   merge(b, r);
   assert.equal(Object.getPrototypeOf(b.cards), null);
   assert.equal(Object.hasOwn(b.cards, '__proto__'), true);
@@ -275,10 +301,21 @@ test('nameConflict', () => {
 });
 
 test('merge reveals a new unsynced card whose author the organiser already revealed', () => {
-  const org = mk(); org.revealed = ['Anna'];
+  const org = mk(); reveal(org, 'Anna');
   const anna = withCard(mk(), { id: 'n', author: 'Anna' });
   const a = merge(structuredClone(org), json(anna));
   const b = merge(structuredClone(anna), json(org));
-  assert.equal(a.cards.n.revealed, true);
-  assert.equal(b.cards.n.revealed, true);
+  assert.equal(isRevealed(a, a.cards.n), true);
+  assert.equal(isRevealed(b, b.cards.n), true);
+});
+
+test('merge: hide (higher rev) beats an older reveal in both orders; equal rev → hidden wins', () => {
+  const x = mk(); reveal(x, 'Ann');
+  const y = structuredClone(x); hide(y, 'Ann');
+  assert.equal(merge(structuredClone(x), json(y)).revealed.Ann.on, false);
+  assert.equal(merge(structuredClone(y), json(x)).revealed.Ann.on, false);
+  const p = mk(); reveal(p, 'Ann');                    // {on:true, rev:1}
+  const q = mk(); reveal(q, 'Ann'); hide(q, 'Ann'); q.revealed.Ann.rev = 1; // {on:false, rev:1}
+  assert.equal(merge(structuredClone(p), json(q)).revealed.Ann.on, false);
+  assert.equal(merge(structuredClone(q), json(p)).revealed.Ann.on, false);
 });

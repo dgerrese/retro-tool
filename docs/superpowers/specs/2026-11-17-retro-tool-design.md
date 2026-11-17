@@ -59,7 +59,7 @@ Known risk (untested, user skipped the spike; first thing to verify on the compa
 
 ## Session lifecycle
 
-1. **Setup screen** (start a session): configure columns (add / rename / reorder / remove; prefilled from localStorage if present, otherwise empty). Optionally import a JSON export: its cards are listed with checkboxes; the organiser ticks which to carry over and picks the target column for them (e.g. "Previous action items"). Imported cards arrive already revealed. Pressing Start generates the code; the starter becomes organiser.
+1. **Setup screen** (start a session): configure columns (add / rename / reorder / remove; prefilled from localStorage if present, otherwise empty). Optionally import a JSON export: its cards are listed with checkboxes; the organiser ticks which to carry over and picks the target column for them (e.g. "Previous action items"). Imported cards arrive already revealed. Only the Start session button starts the session (Enter in a field does not). It generates the code; the starter becomes organiser.
 2. **Join screen**: enter code + display name. Via a link (`#code` in the URL fragment, never sent to GitHub) the code is prefilled.
 3. **Live session**: see Board behaviour.
 4. **End**: there is no end button. A session exists while at least one tab has it open (in memory). When you are the only one connected, the header says so and closing or refreshing the tab triggers the browser's "Leave site?" prompt (`beforeunload`), since either loses the board. Otherwise closing is silent. Joining a code after everyone left finds nobody: after 10 s the joiner sees "Nobody is in this session. It may have ended." (a joiner has no columns to start a board with). Old content is never recoverable.
@@ -76,7 +76,8 @@ Known risk (untested, user skipped the spike; first thing to verify on the compa
 - **Everyone holds the full board** (full mesh). Late joiners receive the full state from any present peer. As long as one participant remains, nothing is lost.
 - **Cards**: text, column, author (name), revealed flag, votes. Authors can add/edit/delete their own cards. Any card exists for all peers immediately; unrevealed cards render face-down under the author (`Anna: 🂠 🂠 🂠`), text not shown.
 - **Reveal**: organiser clicks a participant → all their cards flip face-up for everyone. Authors who left with unrevealed cards keep a chip (dashed, tagged "left") so they can still be revealed; the chip disappears once nothing of theirs is face-down. *(Claude's call, found while drawing the full UI.)* Cards created by that person after their reveal are face-up immediately.
-- **Votes**: one vote per person per card, toggleable; count shown on the card face (`👍 3`). Voting is open on revealed cards at any time.
+- **Votes**: one vote per person per card, toggleable; count shown on the card face (`👍 3`). Voting is open on revealed cards at any time. You can't vote on your own cards (they show the count only).
+- **Hide (undo a reveal)**: the acting organiser can Hide a revealed person again to undo an accidental click; their cards go face-down (votes are kept) until revealed again. Reveal state is per author, last write wins, a tie goes to hidden. Imported cards always stay face-up.
 - **Concurrency**: each card is owned by its author (only they edit text); votes are per-voter sets; so concurrent edits never conflict. Merge on sync = union by card id, author's latest version wins for text, vote sets merged per voter.
 
 ## Export / import
@@ -136,7 +137,7 @@ Column colors cycle in order (header ink / post-it paper):
 
 **Post-its:** paper color of their column, no border, `box-shadow: 1px 2px 0 rgba(0,0,0,.08), 2px 4px 8px rgba(0,0,0,.10)`, alternating rotation −0.7° / +0.6° , 14px/1.4 text. Footer: author left, vote pill right (`👍 n`, pill outline `rgba(0,0,0,.28)`; voted = filled with note text color).
 - Your unrevealed card: diagonal stripes of its paper color, 2px dashed outline inset 5px, tag "face-down for others".
-- Your card on hover/focus: "Edit" and "Delete" in the top right. Editing in place: Enter saves, Shift+Enter newline, Esc cancels.
+- Your card on hover/focus: "Edit" and "Delete" appear in the card footer, in space that is always reserved, so the card never changes size (always visible on touch screens). Editing in place: Enter saves, Shift+Enter newline, Esc cancels.
 - "+ Add a card" slot at the end of each column: dashed outline in the column color.
 
 **Layout:**

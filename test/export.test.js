@@ -10,7 +10,7 @@ function mk() {
   addCard(b, { id: 'b', column: 'c0', text: 'gone', author: 'Ann' });
   addCard(b, { id: 'c', column: 'c1', text: 'line1\nline2', author: 'Bob' });
   reveal(b, 'Ann');
-  toggleVote(b, 'a', 'Ann');
+  toggleVote(b, 'a', 'Cy');
   toggleVote(b, 'a', 'Bob');
   deleteCard(b, 'b', 'Ann');
   return b;

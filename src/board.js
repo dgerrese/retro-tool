@@ -8,7 +8,7 @@ export function createBoard(columns) {
   return {
     columns: columns.map((name, i) => ({ id: `c${i}`, name: clean(name, 60) })),
     cards: Object.create(null), // null prototype: peer-supplied keys like __proto__ stay plain keys
-    revealed: [],
+    revealed: Object.create(null), // author -> {on, rev}: last write wins, so a reveal can be undone
     organiser: { name: '', rev: 0 },
   };
 }
@@ -18,7 +18,7 @@ export function addCard(board, { id, column, text, author }) {
   author = clean(author, 40);
   board.cards[id] = {
     id, column, text: clean(text, 1000), author,
-    rev: 0, deleted: false, revealed: board.revealed.includes(author), votes: Object.create(null),
+    rev: 0, deleted: false, revealed: false, votes: Object.create(null),
   };
   return board;
 }
@@ -44,7 +44,7 @@ export function deleteCard(board, id, by) {
 
 export function toggleVote(board, id, voter) {
   const c = live(board, id);
-  if (c && c.revealed) {
+  if (c && voter !== c.author && isRevealed(board, c)) {
     const v = Object.hasOwn(c.votes, voter) ? c.votes[voter] : (c.votes[voter] = { on: false, rev: 0 });
     v.on = !v.on;
     v.rev++;
@@ -52,11 +52,17 @@ export function toggleVote(board, id, voter) {
   return board;
 }
 
-export function reveal(board, author) {
-  if (!board.revealed.includes(author)) board.revealed.push(author);
-  for (const c of Object.values(board.cards)) if (c.author === author) c.revealed = true;
+// card.revealed only pins imported cards face-up; everyone else follows their author's reveal state
+export const shown = (board, author) => Object.hasOwn(board.revealed, author) && board.revealed[author].on;
+export const isRevealed = (board, card) => card.revealed || shown(board, card.author);
+
+function setShown(board, author, on) {
+  const rev = Object.hasOwn(board.revealed, author) ? board.revealed[author].rev : 0;
+  board.revealed[author] = { on, rev: rev + 1 };
   return board;
 }
+export const reveal = (board, author) => setShown(board, author, true);
+export const hide = (board, author) => setShown(board, author, false);
 
 export function setOrganiser(board, name) {
   board.organiser = { name: clean(name, 40), rev: board.organiser.rev + 1 };
@@ -139,12 +145,8 @@ export function merge(local, remote) {
       local.cards[id] = { ...win, revealed: l.revealed || r.revealed, votes: mergeVotes(l.votes, r.votes) };
     }
   }
-  if (Array.isArray(remote.revealed)) {
-    const names = remote.revealed.map((n) => str(n, 40)).filter((n) => n !== null);
-    local.revealed = [...new Set([...local.revealed, ...names])].sort();
-  }
-  // a card whose author was already revealed (concurrently) must not stay face-down
-  for (const c of Object.values(local.cards)) c.revealed ||= local.revealed.includes(c.author);
+  // same shape and rule as votes: higher rev wins, a tie goes to hidden
+  if (isObj(remote.revealed)) local.revealed = mergeVotes(local.revealed, cleanVotes(remote.revealed));
   const o = remote.organiser;
   if (isObj(o) && isRev(o.rev) && typeof o.name === 'string') {
     const name = clean(o.name, 40), cur = local.organiser;
