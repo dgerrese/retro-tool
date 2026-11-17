@@ -27,10 +27,10 @@ There is no build step. The site is the static files in the repository.
 
 ## Privacy model
 
-- **Content** (cards, names, votes, column names of a live session) travels only browser-to-browser over encrypted WebRTC. No server of ours stores it.
+- **Content** (cards, names, votes, column names of a live session) travels only browser-to-browser over encrypted WebRTC. The app is static files, so there is no server of ours in the content path.
 - **Public Nostr relays** (listed in `src/relays.js`) only help browsers find each other. They see encrypted connection setup, IP addresses and timing, never content.
 - **Public STUN servers** (Google and Cloudflare defaults) see IP addresses during connection setup.
-- **Board lives in memory only.** It disappears when the last tab closes. Nothing is written to IndexedDB or sessionStorage.
+- **Board lives in memory only.** It disappears when the last tab closes. The app does not use IndexedDB or sessionStorage.
 - **localStorage holds only the column names and the theme preference.** Anyone with the session code can join and see the board.
 
 ## Known network risk
