@@ -1,0 +1,14 @@
+{
+  "name": "retro-tool-vendor",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@noble/secp256k1": "3.2.0",
+    "@trystero-p2p/core": "0.26.0",
+    "@trystero-p2p/nostr": "0.26.0",
+    "trystero": "0.26.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
