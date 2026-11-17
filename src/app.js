@@ -13,7 +13,7 @@ const el = (tag, cls, text) => {
 };
 const cleanName = (s) => String(s ?? '').trim().slice(0, 40);
 
-const NOBODY = 'Nobody is in this session. It may have ended.';
+const NOBODY = 'Nobody is in this session. It may have ended, or the code is mistyped.';
 const nameTaken = (name) => `Someone called ${name} is already in this session. Pick another name, or close your other tab first.`;
 
 const joinedAt = Date.now(); // once per page load
