@@ -10,10 +10,10 @@ const withCard = (b, over = {}) =>
   addCard(b, { id: 'a', column: 'c0', text: 'hi', author: 'Ann', ...over });
 
 test('createBoard builds columns, empty state and organiser', () => {
-  assert.deepEqual(mk(), {
-    columns: [{ id: 'c0', name: 'Good' }, { id: 'c1', name: 'Bad' }],
-    cards: {}, revealed: [], organiser: { name: '', rev: 0 },
-  });
+  const b = mk();
+  assert.deepEqual(b.columns, [{ id: 'c0', name: 'Good' }, { id: 'c1', name: 'Bad' }]);
+  assert.deepEqual({ ...b.cards }, {});
+  assert.deepEqual([b.revealed, b.organiser], [[], { name: '', rev: 0 }]);
 });
 
 test('createBoard trims and truncates column names to 60', () => {
@@ -22,7 +22,7 @@ test('createBoard trims and truncates column names to 60', () => {
 
 test('addCard adds an unrevealed card', () => {
   const b = withCard(mk());
-  assert.deepEqual(b.cards.a, {
+  assert.deepEqual({ ...b.cards.a, votes: { ...b.cards.a.votes } }, {
     id: 'a', column: 'c0', text: 'hi', author: 'Ann',
     rev: 0, deleted: false, revealed: false, votes: {},
   });
@@ -71,13 +71,13 @@ test('deleteCard tombstones; deleted card cannot be edited or voted', () => {
   assert.deepEqual([b.cards.a.deleted, b.cards.a.text, b.cards.a.rev], [true, '', 1]);
   editCard(b, 'a', 'back', 'Ann');
   toggleVote(b, 'a', 'Bob');
-  assert.deepEqual([b.cards.a.text, b.cards.a.rev, b.cards.a.votes], ['', 1, {}]);
+  assert.deepEqual([b.cards.a.text, b.cards.a.rev, { ...b.cards.a.votes }], ['', 1, {}]);
 });
 
 test('you cannot vote on an unrevealed card', () => {
   const b = withCard(mk());
   toggleVote(b, 'a', 'Bob');
-  assert.deepEqual(b.cards.a.votes, {});
+  assert.deepEqual({ ...b.cards.a.votes }, {});
 });
 
 test('voting twice returns voteCount to 0', () => {
@@ -119,8 +119,35 @@ test('addImported adds revealed vote-less cards in the column', () => {
   for (const c of cards) {
     assert.equal(c.column, 'c1');
     assert.equal(c.revealed, true);
-    assert.deepEqual(c.votes, {});
+    assert.deepEqual({ ...c.votes }, {});
     assert.equal(c.deleted, false);
   }
   assert.deepEqual(cards.map((c) => c.text), ['one', 'two']);
+});
+
+test('setOrganiser trims and truncates to 40', () => {
+  const b = setOrganiser(mk(), '  ' + 'o'.repeat(50));
+  assert.equal(b.organiser.name, 'o'.repeat(40));
+});
+
+test('a __proto__ voter is an ordinary key and does not pollute Object.prototype', () => {
+  const b = withCard(mk());
+  reveal(b, 'Ann');
+  toggleVote(b, 'a', '__proto__');
+  assert.equal(voteCount(b.cards.a), 1);
+  assert.equal(({}).on, undefined);
+  assert.equal(({}).rev, undefined);
+  toggleVote(b, 'a', '__proto__');
+  assert.equal(voteCount(b.cards.a), 0);
+});
+
+test('a __proto__ card id is an ordinary key; no-ops do not pollute', () => {
+  const b = mk();
+  editCard(b, '__proto__', 'x', 'Ann');
+  toggleVote(b, '__proto__', 'Bob');
+  assert.equal(({}).on, undefined);
+  addCard(b, { id: '__proto__', column: 'c0', text: 'p', author: 'Ann' });
+  assert.equal(Object.hasOwn(b.cards, '__proto__'), true);
+  assert.equal(b.cards['__proto__'].text, 'p');
+  assert.equal(Object.getPrototypeOf(b.cards), null);
 });
