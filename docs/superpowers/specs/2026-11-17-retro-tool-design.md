@@ -54,7 +54,8 @@ Known risk (untested, user skipped the spike; first thing to verify on the compa
 - **Exposure accepted**: public relays and STUN servers see participant IP addresses and connection timing.
 - **Storage**:
   - Board and identity: **in memory only** (user decision). A refresh recovers from peers.
-  - `localStorage`: column configuration only (names + order). Never card content.
+  - `localStorage`: column configuration, your display name (prefills setup and join), theme. Never card content.
+  - `sessionStorage`: on reload only, `retro.reload` = code, column names, organiser/had-cards flags. Never card content.
   - Accepted loss: the last participant crashing or force-closing loses the board.
 
 ## Session lifecycle
@@ -63,7 +64,7 @@ Known risk (untested, user skipped the spike; first thing to verify on the compa
 2. **Join screen**: enter code + display name. Via a link (`#code` in the URL fragment, never sent to GitHub) the code is prefilled.
 3. **Live session**: see Board behaviour.
 4. **End**: there is no end button. A session exists while at least one tab has it open (in memory). When you are the only one connected, the header says so and closing or refreshing the tab triggers the browser's "Leave site?" prompt (`beforeunload`), since either loses the board. Otherwise closing is silent. Joining a code after everyone left finds nobody: after 10 s the joiner sees "Nobody is in this session. It may have ended." (a joiner has no columns to start a board with). Old content is never recoverable.
-5. **Refresh**: the tab rejoins (code + name kept in the URL fragment so the user isn't re-prompted; the fragment holds no content) and receives the board from peers. Alone → board is lost (warned by step 4).
+5. **Refresh**: the tab comes straight back to the board (code + name from the URL fragment; column names, "was organiser" and "had cards" from sessionStorage, written on `pagehide` — never card text) and merges in whatever peers still hold. The organiser stays organiser. Alone → the cards are gone; if there were any, after ~10 s with no peer a banner says the reload cleared the board (no banner if the board was empty or a peer brought the cards back). Name clashes fail at once (no retry: a reloaded tab can never see its own old connection, because names only come from hellos other tabs send).
 
 ## Identity and the organiser role
 

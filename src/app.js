@@ -1,5 +1,5 @@
 import { generateCode, normalizeCode } from './code.js';
-import { createBoard, addImported, setOrganiser, merge, nameConflict } from './board.js';
+import { createBoard, addImported, setOrganiser, merge, nameConflict, actingOrganiser } from './board.js';
 import { parseImport, toMarkdown, toJSON, download, day } from './export.js';
 import { renderBoard } from './boardview.js';
 import { connect } from './net.js';
@@ -62,7 +62,6 @@ themeIcons();
 
 // ---- session / connection ----
 let timers = [];
-let conflictSince = null;
 const later = (ms, f) => timers.push(setTimeout(f, ms));
 
 function stop() {
@@ -71,6 +70,7 @@ function stop() {
   state.net?.leave();
   state.net = null;
   state.present = []; // no session: the leave-site warning must not fire
+  $('#cleared').hidden = true;
 }
 
 function sanitizePeers(list) {
@@ -95,15 +95,9 @@ function open() {
       if (net !== state.net) return;
       const peers = sanitizePeers(list), self = { ...state.me, peerId: net.selfId };
       state.present = [...peers, self];
-      if (nameConflict(self, peers)) {
-        // ponytail: conflictSince is never reset, so a conflict long after a clean join fails at once
-        conflictSince ??= Date.now();
-        if (Date.now() - conflictSince >= 15000) return fail(nameTaken(state.me.name));
-        net.leave();
-        state.net = null;
-        state.present = [self];
-        later(3000, open);
-      }
+      // Names come only from hellos other tabs send us; a closed (reloaded) tab sends none,
+      // so a clash is always a real other person: fail right away, no retrying.
+      if (nameConflict(self, peers)) return fail(nameTaken(state.me.name));
       render();
     },
   });
@@ -116,12 +110,11 @@ function open() {
 function startSession(code, name, board) {
   stop();
   Object.assign(state, { code, me: { name, joinedAt }, board, present: [] });
-  conflictSince = null;
   location.hash = new URLSearchParams({ code, name });
   open();
   render();
   if (!board.columns.length) {
-    const giveUp = () => { if (!state.board.columns.length && conflictSince === null) fail(NOBODY); };
+    const giveUp = () => { if (!state.board.columns.length) fail(NOBODY); };
     // someone said hello: allow one extension for a slow board transfer
     later(10000, () => (state.present.length > 1 ? later(5000, giveUp) : giveUp()));
   }
@@ -134,7 +127,7 @@ function fail(msg) {
 }
 
 // ---- join ----
-function showJoin(code = '', name = '', error = '') {
+function showJoin(code = '', name = savedName(), error = '') {
   $('#join-code').value = code;
   $('#join-name').value = name;
   $('#join-error').textContent = error;
@@ -154,7 +147,7 @@ $('#join-form').addEventListener('submit', (e) => {
     $('#join-error').hidden = false;
     return;
   }
-  if (name) startSession(code, name, createBoard([]));
+  if (name) { rememberName(name); startSession(code, name, createBoard([])); }
 });
 
 // ---- setup ----
@@ -239,11 +232,13 @@ $('#start').addEventListener('click', () => {
   const board = createBoard(kept);
   addImported(board, imported.filter((i) => i.picked), `c${$('#target-col').value || 0}`);
   setOrganiser(board, name);
+  rememberName(name);
   startSession(generateCode(), name, board);
 });
 
 // ---- navigation ----
 $('#go-start').addEventListener('click', () => {
+  if (!$('#setup-name').value) $('#setup-name').value = savedName();
   renderCols();
   show('setup');
   $('#setup-name').focus();
@@ -270,6 +265,44 @@ const exportAs = (ext, content, mime) => download(`retro-${day(new Date())}.${ex
 $('#export-md').addEventListener('click', () => exportAs('md', toMarkdown(state.board, new Date()), 'text/markdown'));
 $('#export-json').addEventListener('click', () => exportAs('json', toJSON(state.board, new Date()), 'application/json'));
 
+// ---- names: remembered in this browser so you don't retype them ----
+function savedName() { try { return cleanName(localStorage.getItem('retro.name') ?? ''); } catch { return ''; } }
+function rememberName(name) { try { localStorage.setItem('retro.name', name); } catch { /* not essential */ } }
+
+// ---- reloading: the board only lives in memory, so a reload keeps just what's needed to come back ----
+// (code, column names, whether you were alone/organiser, whether there were cards — never card text)
+addEventListener('pagehide', () => {
+  if (!state.net || !state.board?.columns.length) return;
+  const alone = state.present.length === 1;
+  const info = {
+    code: state.code,
+    columns: state.board.columns.map((c) => c.name),
+    organiser: actingOrganiser(state.board, state.present) === state.me.name,
+    clearedCards: alone && Object.values(state.board.cards).some((c) => !c.deleted),
+  };
+  try { sessionStorage.setItem('retro.reload', JSON.stringify(info)); } catch { /* falls back to a normal join */ }
+});
+
+function rejoin(code, name) {
+  let info = null;
+  try { info = JSON.parse(sessionStorage.getItem('retro.reload')); sessionStorage.removeItem('retro.reload'); } catch { /* none */ }
+  const ok = info && info.code === code && Array.isArray(info.columns) && info.columns.length &&
+    info.columns.every((c) => typeof c === 'string');
+  if (!ok) return startSession(code, name, createBoard([]));
+  // Back on the board straight away; anyone still here sends their copy and merge fills it in.
+  const board = createBoard(info.columns);
+  if (info.organiser === true) setOrganiser(board, name);
+  startSession(code, name, board);
+  if (info.clearedCards === true) {
+    // only say "cleared" if nobody brought the cards back
+    later(10000, () => {
+      const cardsBack = Object.values(state.board.cards).some((c) => !c.deleted);
+      $('#cleared').hidden = cardsBack || state.present.length > 1;
+    });
+  }
+}
+$('#cleared-ok').addEventListener('click', () => { $('#cleared').hidden = true; });
+
 // ---- leaving: the last tab holds the only copy ----
 addEventListener('beforeunload', (e) => {
   if (state.board && state.present.length === 1 && Object.values(state.board.cards).some((c) => !c.deleted)) {
@@ -281,6 +314,6 @@ addEventListener('beforeunload', (e) => {
 // ---- start: rejoin from the fragment, prefill the code, or show home ----
 const hash = new URLSearchParams(location.hash.slice(1));
 const hashCode = normalizeCode(hash.get('code') ?? ''), hashName = cleanName(hash.get('name'));
-if (hashCode && hashName) startSession(hashCode, hashName, createBoard([]));
+if (hashCode && hashName) rejoin(hashCode, hashName);
 else if (hash.has('code')) showJoin(hashCode ?? hash.get('code'));
 else show('home');
