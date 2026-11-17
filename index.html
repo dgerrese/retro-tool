@@ -58,8 +58,11 @@
 <section id="board" hidden>
   <div class="bar">
     <div class="left">Session <span class="code" id="board-code"></span><button type="button" class="btn sm" id="copy-link">Copy link</button></div>
-    <div class="right"><button type="button" class="btn sm theme-toggle"></button></div>
+    <div class="right"><button type="button" class="btn sm" id="export-md">Export Markdown</button><button type="button" class="btn sm" id="export-json">Export data</button><button type="button" class="btn sm theme-toggle"></button></div>
   </div>
+  <div class="people" id="people"></div>
+  <div class="banner alone" id="alone" role="status" hidden>You're the only one here. Closing this tab deletes the board, so export first if you want to keep it.</div>
+  <div class="cols cycle" id="cols"></div>
 </section>
 </main>
 </body>

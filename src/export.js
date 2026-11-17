@@ -1,6 +1,6 @@
 import { voteCount } from './board.js';
 
-const day = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const day = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const liveCards = (board) => Object.values(board.cards).filter((c) => !c.deleted);
 
 export function toMarkdown(board, date) {

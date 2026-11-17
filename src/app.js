@@ -1,6 +1,7 @@
 import { generateCode, normalizeCode } from './code.js';
 import { createBoard, addImported, setOrganiser, merge, nameConflict } from './board.js';
-import { parseImport } from './export.js';
+import { parseImport, toMarkdown, toJSON, download, day } from './export.js';
+import { renderBoard } from './boardview.js';
 import { connect } from './net.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -25,6 +26,7 @@ export function render() {
   show(state.board.columns.length ? 'board' : 'connecting');
   $('#connecting-code').textContent = state.code;
   $('#board-code').textContent = state.code;
+  if (state.board.columns.length) renderBoard(state, commit);
 }
 
 export function commit() {
@@ -252,11 +254,25 @@ for (const b of $$('.back')) {
   });
 }
 $('#copy-link').addEventListener('click', async (e) => {
+  const b = e.currentTarget;
   try {
-    await navigator.clipboard.writeText(`${location.href.split('#')[0]}#code=${state.code}`);
-    e.target.textContent = 'Copied';
-    setTimeout(() => { e.target.textContent = 'Copy link'; }, 1500);
-  } catch { /* clipboard blocked; the code is on screen */ }
+    await navigator.clipboard.writeText(`${location.origin}${location.pathname}#code=${state.code}`);
+    b.textContent = 'Copied';
+    setTimeout(() => { b.textContent = 'Copy link'; }, 1500);
+  } catch {
+    getSelection().selectAllChildren($('#board-code')); // clipboard blocked: select the code to copy by hand
+  }
+});
+const exportAs = (ext, content, mime) => download(`retro-${day(new Date())}.${ext}`, content, mime);
+$('#export-md').addEventListener('click', () => exportAs('md', toMarkdown(state.board, new Date()), 'text/markdown'));
+$('#export-json').addEventListener('click', () => exportAs('json', toJSON(state.board, new Date()), 'application/json'));
+
+// ---- leaving: the last tab holds the only copy ----
+addEventListener('beforeunload', (e) => {
+  if (state.board && state.present.length === 1 && Object.values(state.board.cards).some((c) => !c.deleted)) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
 });
 
 // ---- start: rejoin from the fragment, prefill the code, or show home ----
