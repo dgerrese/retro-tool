@@ -5,6 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' wss://nos.lol wss://relay.damus.io wss://relay.nostr.band wss://relay.primal.net wss://nostr.mom; base-uri 'none'; form-action 'none'">
 <title>Retro</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="src/app.js"></script>
 </head>
-<body></body>
+<body>
+<main>
+<section id="home" class="form" hidden>
+  <button type="button" class="btn sm theme-toggle corner"></button>
+  <h1 class="title">Retro</h1>
+  <p class="lead">Everything stays in the browsers of the people in the session. When the last person leaves, the board is gone.</p>
+  <button type="button" class="btn big primary" id="go-start">Start a session</button>
+  <button type="button" class="btn big" id="go-join">Join a session</button>
+</section>
+
+<section id="setup" hidden>
+  <form class="form" id="setup-form">
+    <h1 class="title">Start a session</h1>
+    <label class="lbl" for="setup-name">Your name</label>
+    <input class="in" id="setup-name" maxlength="40" autocomplete="nickname" required>
+    <span class="lbl">Columns</span>
+    <div id="col-list" class="cycle"></div>
+    <button type="button" class="btn sm" id="add-col">+ Add column</button>
+    <span class="lbl">Carry over from last retro <span class="tag">(optional)</span></span>
+    <div class="carry">
+      <button type="button" class="btn sm" id="pick-file">Choose export file</button>
+      <span class="tag" id="file-name"></span>
+      <input type="file" accept=".json" id="import-file" hidden>
+      <div id="import-items"></div>
+      <label class="item" id="import-target" hidden>Put them in <select class="in select" id="target-col"></select></label>
+    </div>
+    <div class="foot"><button type="button" class="btn back">Back</button><button class="btn primary" id="start" disabled>Start session</button></div>
+    <div class="error" id="setup-error" role="alert" hidden></div>
+  </form>
+</section>
+
+<section id="join" hidden>
+  <form class="form" id="join-form">
+    <h1 class="title">Join a session</h1>
+    <label class="lbl" for="join-code">Session code</label>
+    <input class="in code" id="join-code" autocomplete="off" spellcheck="false" required>
+    <label class="lbl" for="join-name">Your name</label>
+    <input class="in" id="join-name" maxlength="40" autocomplete="nickname" required>
+    <div class="foot"><button type="button" class="btn back">Back</button><button class="btn primary" id="join-go" disabled>Join</button></div>
+    <div class="error" id="join-error" role="alert" hidden></div>
+  </form>
+</section>
+
+<section id="connecting" class="connecting" hidden>
+  Looking for the others in this session…<span class="code" id="connecting-code"></span>
+</section>
+
+<section id="board" hidden>
+  <div class="bar">
+    <div class="left">Session <span class="code" id="board-code"></span><button type="button" class="btn sm" id="copy-link">Copy link</button></div>
+    <div class="right"><button type="button" class="btn sm theme-toggle"></button></div>
+  </div>
+</section>
+</main>
+</body>
 </html>
