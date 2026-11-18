@@ -24,18 +24,25 @@ export function addCard(board, { id, column, text, author }) {
   return board;
 }
 
-export function editCard(board, id, text, by) {
+// The author manages their card. While the author is away, the acting organiser manages their
+// face-up cards; the author stays the author, so they get the cards back when they return.
+export function manages(board, card, name, present = []) {
+  return card.author === name || (isRevealed(board, card) &&
+    !present.some((p) => p.name === card.author) && actingOrganiser(board, present) === name);
+}
+
+export function editCard(board, id, text, by, present) {
   const c = live(board, id);
-  if (c && c.author === by) {
+  if (c && manages(board, c, by, present)) {
     c.text = clean(text, 1000);
     c.rev++;
   }
   return board;
 }
 
-export function deleteCard(board, id, by) {
+export function deleteCard(board, id, by, present) {
   const c = live(board, id);
-  if (c && c.author === by) {
+  if (c && manages(board, c, by, present)) {
     c.deleted = true;
     c.text = '';
     c.rev++;

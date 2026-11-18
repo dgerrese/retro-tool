@@ -1,4 +1,4 @@
-import { addCard, editCard, deleteCard, toggleVote, moveCard, reveal, hide, shown, isRevealed, setOrganiser, setHelper, isHelper, canOrganise, voteCount, actingOrganiser } from './board.js';
+import { addCard, editCard, deleteCard, toggleVote, moveCard, reveal, hide, shown, isRevealed, setOrganiser, setHelper, manages, isHelper, canOrganise, voteCount, actingOrganiser } from './board.js';
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -33,7 +33,8 @@ export function renderBoard(state, commit) {
   focusNext = null;
 
   const cards = live(board);
-  if (editing && !cards.some((c) => c.id === editing.id && c.author === me.name)) editing = null;
+  const mayManage = (c) => manages(board, c, me.name, state.present);
+  if (editing && !cards.some((c) => c.id === editing.id && mayManage(c))) editing = null;
   const up = (c) => isRevealed(board, c);
   const facedown = (name) => cards.filter((c) => c.author === name && !up(c)).length;
   const acting = actingOrganiser(board, state.present);
@@ -43,7 +44,7 @@ export function renderBoard(state, commit) {
   // ---- participants ----
   const people = new Map([[me.name, state.present.find((p) => p.name === me.name) ?? me]]);
   for (const p of [...state.present].sort((x, y) => x.joinedAt - y.joinedAt)) if (!people.has(p.name)) people.set(p.name, p);
-  const left = [...new Set(cards.filter((c) => !up(c)).map((c) => c.author))].filter((n) => !people.has(n));
+  const left = [...new Set(cards.map((c) => c.author))].filter((n) => !people.has(n));
 
   const chip = (name, isLeft) => {
     const n = facedown(name), isMe = name === me.name;
@@ -108,7 +109,7 @@ export function renderBoard(state, commit) {
       t.addEventListener('input', () => { editing.text = t.value; });
       const done = (save) => {
         const text = t.value.trim();
-        if (save && text && text !== card.text) editCard(board, card.id, text, me.name);
+        if (save && text && text !== card.text) editCard(board, card.id, text, me.name, state.present);
         editing = null;
         focusNext = `editbtn:${card.id}`;
         save ? commit() : rerender();
@@ -122,7 +123,7 @@ export function renderBoard(state, commit) {
     const meta = el('div', 'meta');
     meta.append(up(card) ? el('span', null, mine ? `${card.author} (you)` : card.author) : el('span', 'ntag', 'face-down for others'));
     // Edit/Delete sit in the footer with their space always reserved, so hovering never resizes the card
-    if (mine) {
+    if (mayManage(card)) {
       const tools = el('span', 'tools');
       tools.append(
         button('Edit', null, `editbtn:${card.id}`, () => {
@@ -130,7 +131,7 @@ export function renderBoard(state, commit) {
           focusNext = `edit:${card.id}`;
           rerender();
         }),
-        button('Delete', null, `del:${card.id}`, act(() => deleteCard(board, card.id, me.name))));
+        button('Delete', null, `del:${card.id}`, act(() => deleteCard(board, card.id, me.name, state.present))));
       meta.append(tools);
     }
     if (up(card)) {

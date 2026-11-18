@@ -179,7 +179,7 @@ test('a __proto__ card id is an ordinary key; no-ops do not pollute', () => {
 });
 
 // ---- Task 3: merge, organiser, name conflicts ----
-import { merge, actingOrganiser, nameConflict, setHelper, canOrganise } from '../src/board.js';
+import { merge, actingOrganiser, nameConflict, setHelper, canOrganise, manages } from '../src/board.js';
 
 const snap = (b) => JSON.parse(JSON.stringify(b));
 const json = (b) => JSON.parse(JSON.stringify(b)); // simulates the wire
@@ -354,4 +354,23 @@ test('helpers can organise, merge like votes, and can be removed', () => {
   setHelper(b, 'Cy', false);
   merge(other, JSON.parse(JSON.stringify(b)));
   assert.equal(canOrganise(other, 'Cy', p), false);
+});
+
+test('organiser manages face-up cards of people who left; the author gets them back on return', () => {
+  const b = mk();
+  setOrganiser(b, 'Org');
+  addCard(b, { id: 'up', column: 'c0', text: 'x', author: 'Lea' });
+  reveal(b, 'Lea');
+  addCard(b, { id: 'down', column: 'c0', text: 'y', author: 'Max' });
+  const away = [{ name: 'Org', joinedAt: 1 }, { name: 'Bob', joinedAt: 2 }];
+  const back = [...away, { name: 'Lea', joinedAt: 3 }];
+  assert.equal(manages(b, b.cards.up, 'Org', away), true);
+  assert.equal(manages(b, b.cards.up, 'Bob', away), false);
+  assert.equal(manages(b, b.cards.down, 'Org', away), false); // face-down: organiser can't see it
+  assert.equal(manages(b, b.cards.up, 'Org', back), false);
+  assert.equal(manages(b, b.cards.up, 'Lea', back), true);
+  editCard(b, 'up', 'edited', 'Org', away);
+  assert.deepEqual([b.cards.up.text, b.cards.up.author], ['edited', 'Lea']);
+  deleteCard(b, 'up', 'Org', back); // Lea is back: no longer the organiser's to delete
+  assert.equal(b.cards.up.deleted, false);
 });
