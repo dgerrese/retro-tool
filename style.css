@@ -116,12 +116,15 @@ input[type="checkbox"]:checked { background: var(--text); box-shadow: inset 0 0 
 .note.hidden { background: repeating-linear-gradient(-45deg, var(--col-paper) 0 10px, color-mix(in srgb, var(--col-paper) 72%, #fff) 10px 20px);
   outline: 2px dashed rgba(0,0,0,.35); outline-offset: -5px; }
 .note.editing { transform: none; }
-.meta { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.note[draggable="true"] { cursor: grab; }
+.col.drop { outline: 2px dashed var(--col-ink); outline-offset: 4px; border-radius: 6px; }
+.meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; overflow-wrap: anywhere; }
 .vote { font: 600 12px shantell, sans-serif; color: var(--note-text); border: 1.5px solid rgba(0,0,0,.28); border-radius: 999px; padding: 0 8px;
   background: rgba(255,255,255,.55); cursor: pointer; white-space: nowrap; }
 .vote.on { background: var(--note-text); color: var(--col-paper); border-color: var(--note-text); }
 .ntag { font: 600 11px shantell, sans-serif; background: var(--note-text); color: var(--col-paper); border-radius: 3px; padding: 1px 6px; }
-.tools { display: flex; gap: 4px; margin-left: auto; opacity: 0; transition: opacity .12s; }
+.meta > :first-child { margin-right: auto; }
+.tools { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
 .note:is(:hover, :focus-within) .tools { opacity: 1; }
 @media (hover: none) { .tools { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .tools { transition: none; } }

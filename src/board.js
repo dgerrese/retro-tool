@@ -10,6 +10,7 @@ export function createBoard(columns) {
     cards: Object.create(null), // null prototype: peer-supplied keys like __proto__ stay plain keys
     revealed: Object.create(null), // author -> {on, rev}: last write wins, so a reveal can be undone
     organiser: { name: '', rev: 0 },
+    helpers: Object.create(null), // name -> {on, rev}: extra organisers, same merge rule as votes
   };
 }
 
@@ -18,7 +19,7 @@ export function addCard(board, { id, column, text, author }) {
   author = clean(author, 40);
   board.cards[id] = {
     id, column, text: clean(text, 1000), author,
-    rev: 0, deleted: false, revealed: false, votes: Object.create(null),
+    rev: 0, deleted: false, revealed: false, votes: Object.create(null), downs: Object.create(null),
   };
   return board;
 }
@@ -42,12 +43,26 @@ export function deleteCard(board, id, by) {
   return board;
 }
 
-export function toggleVote(board, id, voter) {
+// kind: 'votes' (👍) or 'downs' (👎); turning one on turns the other off
+export function toggleVote(board, id, voter, kind = 'votes') {
   const c = live(board, id);
   if (c && voter !== c.author && isRevealed(board, c)) {
-    const v = Object.hasOwn(c.votes, voter) ? c.votes[voter] : (c.votes[voter] = { on: false, rev: 0 });
+    const get = (k) => (Object.hasOwn(c[k], voter) ? c[k][voter] : (c[k][voter] = { on: false, rev: 0 }));
+    const v = get(kind);
     v.on = !v.on;
     v.rev++;
+    const other = get(kind === 'votes' ? 'downs' : 'votes');
+    if (v.on && other.on) { other.on = false; other.rev++; }
+  }
+  return board;
+}
+
+// who may move: see canOrganise
+export function moveCard(board, id, column) {
+  const c = live(board, id);
+  if (c && c.column !== column && board.columns.some((x) => x.id === column)) {
+    c.column = column;
+    c.rev++;
   }
   return board;
 }
@@ -69,6 +84,15 @@ export function setOrganiser(board, name) {
   return board;
 }
 
+export function setHelper(board, name, on) {
+  const rev = Object.hasOwn(board.helpers, name) ? board.helpers[name].rev : 0;
+  board.helpers[name] = { on, rev: rev + 1 };
+  return board;
+}
+export const isHelper = (board, name) => Object.hasOwn(board.helpers, name) && board.helpers[name].on;
+// the acting organiser and helpers can reveal, hide and move cards
+export const canOrganise = (board, name, present) => actingOrganiser(board, present) === name || isHelper(board, name);
+
 export function addImported(board, items, column) {
   for (const { text, author } of items) {
     const id = crypto.randomUUID();
@@ -78,7 +102,7 @@ export function addImported(board, items, column) {
   return board;
 }
 
-export const voteCount = (card) => Object.values(card.votes).filter((v) => v.on).length;
+export const voteCount = (card, kind = 'votes') => Object.values(card[kind]).filter((v) => v.on).length;
 
 // ---- merge: remote is untrusted; everything copied is rebuilt into clean objects ----
 const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
@@ -103,7 +127,7 @@ function cleanCard(id, raw, columns) {
   const deleted = raw.deleted === true;
   return {
     id, column: raw.column, text: deleted ? '' : text, author, rev: raw.rev,
-    deleted, revealed: raw.revealed === true, votes: cleanVotes(raw.votes),
+    deleted, revealed: raw.revealed === true, votes: cleanVotes(raw.votes), downs: cleanVotes(raw.downs),
   };
 }
 
@@ -142,11 +166,12 @@ export function merge(local, remote) {
       const l = Object.hasOwn(local.cards, id) ? local.cards[id] : null;
       if (!l) { local.cards[id] = r; continue; }
       const win = better(r, l) ? r : l;
-      local.cards[id] = { ...win, revealed: l.revealed || r.revealed, votes: mergeVotes(l.votes, r.votes) };
+      local.cards[id] = { ...win, revealed: l.revealed || r.revealed, votes: mergeVotes(l.votes, r.votes), downs: mergeVotes(l.downs, r.downs) };
     }
   }
   // same shape and rule as votes: higher rev wins, a tie goes to hidden
   if (isObj(remote.revealed)) local.revealed = mergeVotes(local.revealed, cleanVotes(remote.revealed));
+  if (isObj(remote.helpers)) local.helpers = mergeVotes(local.helpers, cleanVotes(remote.helpers));
   const o = remote.organiser;
   if (isObj(o) && isRev(o.rev) && typeof o.name === 'string') {
     const name = clean(o.name, 40), cur = local.organiser;

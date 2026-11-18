@@ -7,7 +7,7 @@ export function toMarkdown(board, date) {
   const cards = liveCards(board);
   const cols = board.columns.map((col) => [
     `## ${col.name}`,
-    ...cards.filter((c) => c.column === col.id).map((c) => `- ${c.text.replace(/\r?\n/g, ' ')} (👍 ${voteCount(c)})`),
+    ...cards.filter((c) => c.column === col.id).map((c) => `- ${c.text.replace(/\r?\n/g, ' ')} (👍 ${voteCount(c)} 👎 ${voteCount(c, 'downs')})`),
   ].join('\n'));
   return [`# Retro ${day(date)}`, ...cols].join('\n\n');
 }
@@ -18,7 +18,7 @@ export function toJSON(board, date) {
     version: 1,
     date: day(date),
     columns: board.columns.map((c) => c.name),
-    cards: liveCards(board).map((c) => ({ column: name(c.column), text: c.text, author: c.author, votes: voteCount(c) })),
+    cards: liveCards(board).map((c) => ({ column: name(c.column), text: c.text, author: c.author, votes: voteCount(c), downvotes: voteCount(c, 'downs') })),
   }, null, 2);
 }
 

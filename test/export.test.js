@@ -18,7 +18,7 @@ function mk() {
 
 test('toMarkdown exact', () => {
   assert.equal(toMarkdown(mk(), date),
-    '# Retro 2026-11-07\n\n## Good\n- Shipped it (👍 2)\n\n## Bad\n- line1 line2 (👍 0)');
+    '# Retro 2026-11-07\n\n## Good\n- Shipped it (👍 2 👎 0)\n\n## Bad\n- line1 line2 (👍 0 👎 0)');
 });
 
 test('toJSON round trip skips deleted', () => {

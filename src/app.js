@@ -245,6 +245,13 @@ $('#go-start').addEventListener('click', () => {
 });
 $('#go-join').addEventListener('click', () => showJoin());
 $('#connecting-back').addEventListener('click', stop);
+$('#leave').addEventListener('click', () => {
+  const last = state.present.length === 1 && Object.values(state.board.cards).some((c) => !c.deleted);
+  if (last && !confirm("You're the only one here. Leaving deletes the board. Leave anyway?")) return;
+  stop();
+  history.replaceState(null, '', location.pathname + location.search);
+  show('home');
+});
 for (const b of $$('.back')) {
   b.addEventListener('click', () => {
     history.replaceState(null, '', location.pathname + location.search);

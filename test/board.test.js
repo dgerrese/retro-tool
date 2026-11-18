@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createBoard, addCard, editCard, deleteCard, toggleVote,
-  reveal, hide, isRevealed, setOrganiser, addImported, voteCount,
+  reveal, hide, isRevealed, setOrganiser, addImported, voteCount, moveCard,
 } from '../src/board.js';
 
 const mk = () => createBoard(['Good', 'Bad']);
@@ -22,9 +22,9 @@ test('createBoard trims and truncates column names to 60', () => {
 
 test('addCard adds an unrevealed card', () => {
   const b = withCard(mk());
-  assert.deepEqual({ ...b.cards.a, votes: { ...b.cards.a.votes } }, {
+  assert.deepEqual({ ...b.cards.a, votes: { ...b.cards.a.votes }, downs: { ...b.cards.a.downs } }, {
     id: 'a', column: 'c0', text: 'hi', author: 'Ann',
-    rev: 0, deleted: false, revealed: false, votes: {},
+    rev: 0, deleted: false, revealed: false, votes: {}, downs: {},
   });
 });
 
@@ -179,7 +179,7 @@ test('a __proto__ card id is an ordinary key; no-ops do not pollute', () => {
 });
 
 // ---- Task 3: merge, organiser, name conflicts ----
-import { merge, actingOrganiser, nameConflict } from '../src/board.js';
+import { merge, actingOrganiser, nameConflict, setHelper, canOrganise } from '../src/board.js';
 
 const snap = (b) => JSON.parse(JSON.stringify(b));
 const json = (b) => JSON.parse(JSON.stringify(b)); // simulates the wire
@@ -318,4 +318,40 @@ test('merge: hide (higher rev) beats an older reveal in both orders; equal rev â
   const q = mk(); reveal(q, 'Ann'); hide(q, 'Ann'); q.revealed.Ann.rev = 1; // {on:false, rev:1}
   assert.equal(merge(structuredClone(p), json(q)).revealed.Ann.on, false);
   assert.equal(merge(structuredClone(q), json(p)).revealed.Ann.on, false);
+});
+
+test('thumbs down and up are exclusive per voter', () => {
+  const b = withCard(mk());
+  reveal(b, 'Ann');
+  toggleVote(b, 'a', 'Bob');
+  toggleVote(b, 'a', 'Bob', 'downs');
+  assert.deepEqual([voteCount(b.cards.a), voteCount(b.cards.a, 'downs')], [0, 1]);
+  toggleVote(b, 'a', 'Bob');
+  assert.deepEqual([voteCount(b.cards.a), voteCount(b.cards.a, 'downs')], [1, 0]);
+  toggleVote(b, 'a', 'Ann', 'downs'); // not on your own card
+  assert.equal(voteCount(b.cards.a, 'downs'), 0);
+});
+
+test('moveCard changes column, ignores unknown column, and merges', () => {
+  const b = withCard(mk());
+  moveCard(b, 'a', 'zz');
+  assert.deepEqual([b.cards.a.column, b.cards.a.rev], ['c0', 0]);
+  moveCard(b, 'a', 'c1');
+  assert.deepEqual([b.cards.a.column, b.cards.a.rev], ['c1', 1]);
+  const other = withCard(mk());
+  merge(other, JSON.parse(JSON.stringify(b)));
+  assert.equal(other.cards.a.column, 'c1');
+});
+
+test('helpers can organise, merge like votes, and can be removed', () => {
+  const b = mk();
+  setOrganiser(b, 'Ann');
+  const p = [{ name: 'Ann', joinedAt: 1 }, { name: 'Bob', joinedAt: 2 }, { name: 'Cy', joinedAt: 3 }];
+  assert.deepEqual(p.map((x) => canOrganise(b, x.name, p)), [true, false, false]);
+  setHelper(b, 'Bob', true); setHelper(b, 'Cy', true);
+  const other = merge(mk(), JSON.parse(JSON.stringify(b)));
+  assert.deepEqual(p.map((x) => canOrganise(other, x.name, p)), [true, true, true]);
+  setHelper(b, 'Cy', false);
+  merge(other, JSON.parse(JSON.stringify(b)));
+  assert.equal(canOrganise(other, 'Cy', p), false);
 });
