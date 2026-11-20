@@ -196,6 +196,8 @@ export function actingOrganiser(board, present) {
   return present.reduce((m, p) => (p.joinedAt < m.joinedAt || (p.joinedAt === m.joinedAt && p.name < m.name) ? p : m)).name;
 }
 
+// ponytail: joinedAt is each browser's wall clock, so skew between machines can pick the wrong tab
+// when two people join within seconds; switch to presence-order if that shows up in practice
 const norm = (s) => s.trim().toLowerCase();
 export function nameConflict(me, others) {
   return others.some((o) => norm(o.name) === norm(me.name) &&

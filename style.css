@@ -129,7 +129,7 @@ input[type="checkbox"]:checked { background: var(--text); box-shadow: inset 0 0 
 @media (hover: none) { .tools { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .tools { transition: none; } }
 .vote.own { cursor: default; background: transparent; }
-.tools button { font: 600 11px shantell, sans-serif; color: var(--note-text); background: rgba(255,255,255,.8); border: 0; border-radius: 4px; padding: 0 6px; cursor: pointer; }
+.tools :is(button, select) { font: 600 11px shantell, sans-serif; color: var(--note-text); background: rgba(255,255,255,.8); border: 0; border-radius: 4px; padding: 0 6px; cursor: pointer; }
 .note textarea { display: block; width: 100%; min-height: 56px; resize: none; border: 0; background: rgba(255,255,255,.65); font: 400 14px/1.4 shantell, sans-serif;
   color: var(--note-text); padding: 4px 6px; border-radius: 3px; outline: 2px solid var(--note-text); }
 .hint { font-size: 11px; opacity: .75; margin-top: 4px; }

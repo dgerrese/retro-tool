@@ -21,7 +21,7 @@ for ICE and see IP addresses, never content. No `fetch`, `XMLHttpRequest`, `send
 
 1. In the repository, go to Settings → Pages.
 2. Under "Build and deployment", choose "Deploy from a branch".
-3. Select the `main` branch and the root folder (`/`), then save.
+3. Select the `master` branch and the root folder (`/`), then save.
 
 There is no build step. The site is the static files in the repository.
 

@@ -11,6 +11,10 @@ const el = (tag, cls, text) => {
 const drafts = Object.create(null);
 let editing = null; // {id, text}
 let focusNext = null;
+export function resetBoardView() {
+  for (const k of Object.keys(drafts)) delete drafts[k];
+  editing = focusNext = null;
+}
 
 const live = (board) => Object.values(board.cards).filter((c) => !c.deleted);
 
@@ -44,7 +48,8 @@ export function renderBoard(state, commit) {
   // ---- participants ----
   const people = new Map([[me.name, state.present.find((p) => p.name === me.name) ?? me]]);
   for (const p of [...state.present].sort((x, y) => x.joinedAt - y.joinedAt)) if (!people.has(p.name)) people.set(p.name, p);
-  const left = [...new Set(cards.map((c) => c.author))].filter((n) => !people.has(n));
+  // imported cards (card.revealed) come from an old retro: their authors were never here
+  const left = [...new Set(cards.filter((c) => !c.revealed).map((c) => c.author))].filter((n) => !people.has(n));
 
   const chip = (name, isLeft) => {
     const n = facedown(name), isMe = name === me.name;
@@ -123,8 +128,8 @@ export function renderBoard(state, commit) {
     const meta = el('div', 'meta');
     meta.append(up(card) ? el('span', null, mine ? `${card.author} (you)` : card.author) : el('span', 'ntag', 'face-down for others'));
     // Edit/Delete sit in the footer with their space always reserved, so hovering never resizes the card
+    const tools = el('span', 'tools');
     if (mayManage(card)) {
-      const tools = el('span', 'tools');
       tools.append(
         button('Edit', null, `editbtn:${card.id}`, () => {
           editing = { id: card.id, text: card.text };
@@ -132,8 +137,16 @@ export function renderBoard(state, commit) {
           rerender();
         }),
         button('Delete', null, `del:${card.id}`, act(() => deleteCard(board, card.id, me.name, state.present))));
-      meta.append(tools);
     }
+    // keyboard/touch alternative to drag and drop
+    if (iHelp && board.columns.length > 1) {
+      const move = keyed(el('select'), `move:${card.id}`);
+      move.setAttribute('aria-label', 'Move to column');
+      move.append(...board.columns.map((col) => Object.assign(el('option', null, col.name), { value: col.id, selected: col.id === card.column })));
+      move.addEventListener('change', act(() => moveCard(board, card.id, move.value)));
+      tools.append(move);
+    }
+    if (tools.childElementCount) meta.append(tools);
     if (up(card)) {
       for (const [kind, icon, word] of [['votes', '👍', 'Thumbs up'], ['downs', '👎', 'Thumbs down']]) {
         const votes = voteCount(card, kind);

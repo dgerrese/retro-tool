@@ -1,7 +1,7 @@
 import { generateCode, normalizeCode } from './code.js';
-import { createBoard, addImported, setOrganiser, merge, nameConflict, actingOrganiser } from './board.js';
+import { createBoard, addImported, setOrganiser, merge, nameConflict } from './board.js';
 import { parseImport, toMarkdown, toJSON, download, day } from './export.js';
-import { renderBoard } from './boardview.js';
+import { renderBoard, resetBoardView } from './boardview.js';
 import { connect } from './net.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -16,8 +16,6 @@ const cleanName = (s) => String(s ?? '').trim().slice(0, 40);
 
 const NOBODY = 'Nobody is in this session. It may have ended, or the code is mistyped.';
 const nameTaken = (name) => `Someone called ${name} is already in this session. Pick another name, or close your other tab first.`;
-
-const joinedAt = Date.now(); // once per page load
 
 // Live session state. Task 7 reads it in render() and calls commit() after a local board op.
 export const state = { code: null, me: null, board: null, present: [], net: null };
@@ -70,6 +68,7 @@ function stop() {
   state.net?.leave();
   state.net = null;
   state.present = []; // no session: the leave-site warning must not fire
+  resetBoardView(); // drafts must not carry over to the next session
   $('#cleared').hidden = true;
 }
 
@@ -109,7 +108,7 @@ function open() {
 
 function startSession(code, name, board) {
   stop();
-  Object.assign(state, { code, me: { name, joinedAt }, board, present: [] });
+  Object.assign(state, { code, me: { name, joinedAt: Date.now() }, board, present: [] });
   location.hash = new URLSearchParams({ code, name });
   open();
   render();
@@ -284,7 +283,7 @@ addEventListener('pagehide', () => {
   const info = {
     code: state.code,
     columns: state.board.columns.map((c) => c.name),
-    organiser: actingOrganiser(state.board, state.present) === state.me.name,
+    organiser: state.board.organiser.name === state.me.name, // not acting: the real organiser gets it back
     clearedCards: alone && Object.values(state.board.cards).some((c) => !c.deleted),
   };
   try { sessionStorage.setItem('retro.reload', JSON.stringify(info)); } catch { /* falls back to a normal join */ }
