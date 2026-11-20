@@ -21,7 +21,8 @@ const live = (board) => Object.values(board.cards).filter((c) => !c.deleted);
 export function renderBoard(state, commit) {
   const { board, me } = state;
   const rerender = () => renderBoard(state, commit);
-  const act = (f) => () => { f(); commit(); };
+  // next: data-key to focus when the clicked button disappears in the re-render
+  const act = (f, next) => () => { f(); if (next) focusNext = next; commit(); };
 
   const keyed = (node, key) => { node.dataset.key = key; return node; };
   const button = (label, cls, key, onClick) => {
@@ -69,18 +70,18 @@ export function renderBoard(state, commit) {
     const isShown = shown(board, name);
     if (isShown && !n && !isMe) c.append(el('span', 'tag', 'revealed'));
     if (iHelp && n) {
-      const b = button('Reveal', 'btn sm primary', `reveal:${name}`, act(() => reveal(board, name)));
+      const b = button('Reveal', 'btn sm primary', `reveal:${name}`, act(() => reveal(board, name), `hide:${name}`));
       b.setAttribute('aria-label', `Reveal ${name}'s cards`);
       c.append(b);
     }
     // undo an accidental reveal: only when they have cards that the reveal turned face-up
     if (iHelp && isShown && cards.some((x) => x.author === name && !x.revealed)) {
-      const b = button('Hide', 'btn sm', `hide:${name}`, act(() => hide(board, name)));
+      const b = button('Hide', 'btn sm', `hide:${name}`, act(() => hide(board, name), `reveal:${name}`));
       b.setAttribute('aria-label', `Hide ${name}'s cards again`);
       c.append(b);
     }
     if (iOrganise && !isMe && !isLeft) {
-      const b = button('Make organiser', 'btn sm', `org:${name}`, act(() => setOrganiser(board, name)));
+      const b = button('Make organiser', 'btn sm', `org:${name}`, act(() => setOrganiser(board, name), `add:${board.columns[0]?.id}`));
       b.setAttribute('aria-label', `Make ${name} organiser`);
       const helps = isHelper(board, name);
       const h = button(helps ? 'Remove helper' : 'Make helper', 'btn sm', `help:${name}`, act(() => setHelper(board, name, !helps)));
@@ -136,7 +137,7 @@ export function renderBoard(state, commit) {
           focusNext = `edit:${card.id}`;
           rerender();
         }),
-        button('Delete', null, `del:${card.id}`, act(() => deleteCard(board, card.id, me.name, state.present))));
+        button('Delete', null, `del:${card.id}`, act(() => deleteCard(board, card.id, me.name, state.present), `add:${card.column}`)));
     }
     // keyboard/touch alternative to drag and drop
     if (iHelp && board.columns.length > 1) {

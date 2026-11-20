@@ -174,18 +174,24 @@ function renderCols(focusIndex) {
     const input = Object.assign(el('input', 'in'), { value: name, maxLength: 60 });
     input.setAttribute('aria-label', `Column ${i + 1} name`);
     input.addEventListener('input', () => { cols[i] = input.value; setupReady(); renderTargets(); });
+    // f returns the row whose same button gets focus after the re-render
     const btn = (label, aria, f) => {
       const b = el('button', 'btn sm', label);
       b.type = 'button';
       b.setAttribute('aria-label', aria);
-      b.addEventListener('click', () => { f(); renderCols(); });
+      b.addEventListener('click', () => {
+        const at = f();
+        renderCols();
+        const rows = list.querySelectorAll('.colrow');
+        (rows[Math.min(at, rows.length - 1)]?.querySelector(`[aria-label="${aria}"]`) ?? $('#add-col')).focus();
+      });
       return b;
     };
-    const swap = (j) => { if (j >= 0 && j < cols.length) [cols[i], cols[j]] = [cols[j], cols[i]]; };
+    const swap = (j) => { if (j < 0 || j >= cols.length) return i; [cols[i], cols[j]] = [cols[j], cols[i]]; return j; };
     row.append(el('span', 'stripe'), input,
       btn('↑', 'Move up', () => swap(i - 1)),
       btn('↓', 'Move down', () => swap(i + 1)),
-      btn('✕', 'Remove column', () => cols.splice(i, 1)));
+      btn('✕', 'Remove column', () => { cols.splice(i, 1); return i; }));
     return row;
   }));
   if (focusIndex != null) list.querySelectorAll('input')[focusIndex]?.focus();

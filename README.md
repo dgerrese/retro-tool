@@ -34,6 +34,7 @@ There is no build step. The site is the static files in the repository.
 - The session code and your name are in the page URL after `#`, so they end up in browser history. Anyone with access to that history can join a live session.
 - Browser features you enable (for example enhanced spell check or page translation) may send typed text to the browser vendor. The app sets `translate="no"`.
 - **localStorage holds only your column setup, your display name and the theme preference.** Anyone with the session code can join and see the board.
+- On GitHub Pages the app shares the `dgerrese.github.io` origin with every other Pages project of this account. Those pages can read and change this app's localStorage and, in the same tab, its sessionStorage. Serve the app from its own domain if that matters.
 
 ## Known network risk
 
